@@ -20,6 +20,12 @@
         }
         #node-list::-webkit-scrollbar { width: 5px; }
         #node-list::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        
+        /* แก้ไขปัญหาเส้นเอียงในแนวนอน และปรับแต่งความสวยงามของลูกศร */
+        .mermaid svg {
+            max-width: 100% !important;
+            height: auto !important;
+        }
     </style>
 </head>
 <body class="p-4 md:p-6">
@@ -131,7 +137,7 @@
                 fontSize: '14px'
             },
             flowchart: { 
-                curve: 'stepAfter', 
+                curve: 'basis', // เปลี่ยนจาก stepAfter เป็น basis เพื่อให้เส้นในแนวนอนดูสมูทขึ้น
                 padding: 40,
                 htmlLabels: true,
                 useMaxWidth: false
@@ -227,29 +233,21 @@
 
         function clearAll() {
             if (confirm("ต้องการล้างขั้นตอนทั้งหมดใช่หรือไม่?")) {
-                // ล้างข้อมูลจริง
                 nodes = [];
                 localStorage.removeItem('flowchart_nodes');
-                
-                // ล้าง UI ในส่วนของ list
                 const container = document.getElementById('node-list');
                 container.innerHTML = `
                     <div id="empty-state" class="text-center py-10">
                         <p class="text-slate-400 text-sm">ยังไม่มีขั้นตอน กดปุ่ม "เพิ่มโหนด" เพื่อเริ่มสร้าง</p>
                     </div>
                 `;
-                
-                // ล้างส่วน Preview
                 document.getElementById('mermaid-render').innerHTML = '';
-                
-                // สั่งประมวลผลใหม่เพื่อความชัวร์
                 generateFlowchart();
             }
         }
 
         async function generateFlowchart() {
             const renderArea = document.getElementById('mermaid-render');
-            
             if (nodes.length === 0) {
                 renderArea.innerHTML = '';
                 renderArea.removeAttribute('data-processed');
@@ -264,7 +262,8 @@
                 if (node.type === 'terminator') { s = '(['; e = '])'; }
                 if (node.type === 'decision') { s = '{'; e = '}'; }
                 if (node.type === 'data') { s = '[/'; e = '/]'; }
-                if (node.type === 'document') { s = '[{'; e = '}]'; }
+                // แก้ไข Document Syntax ให้ถูกต้อง (Mermaid มาตรฐานใช้ [[ ]] หรือใช้สี่เหลี่ยมขอบซ้อน)
+                if (node.type === 'document') { s = '[['; e = ']]'; } 
                 
                 const safeText = node.text ? node.text.replace(/"/g, "'") : `ขั้นตอน ${node.id}`;
                 code += `    N${node.id}${s}"${safeText}"${e}\n`;
@@ -276,6 +275,7 @@
                     targets.forEach((target, index) => {
                         if (target && target !== "") {
                             const labelText = labels[index] ? `|${labels[index]}|` : '';
+                            // ใช้ --> แทน -.-> เพื่อลดปัญหาเส้นเบี้ยวในบางกรณีของ LR
                             code += `    N${node.id} -->${labelText} N${target}\n`;
                         }
                     });
@@ -283,11 +283,8 @@
             });
 
             try {
-                // เทคนิค Force Re-render: ลบ Attribute และยัดโค้ดใหม่ลงไป
                 renderArea.removeAttribute('data-processed');
                 renderArea.innerHTML = code;
-                
-                // สั่ง Mermaid วาดใหม่
                 await mermaid.run({
                     nodes: [renderArea],
                     suppressErrors: true
@@ -344,7 +341,7 @@
                 }
             };
             reader.readAsText(file);
-            event.target.value = ''; // Reset input
+            event.target.value = '';
         }
 
         function downloadSVG() {
@@ -363,7 +360,6 @@
             URL.revokeObjectURL(url);
         }
 
-        // เริ่มต้นโหลดหน้าเว็บ
         window.onload = () => {
             renderNodeList();
         };
